@@ -1,0 +1,1283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WaterIntel India v1.1 — Water Intelligence Dashboard</title>
+  <meta name="description" content="WaterIntel India: location-based weather model data, transparent water calculators, and water-data integration status." />
+  <meta name="theme-color" content="#0F2A43" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+  <style>
+    :root {
+      --navy: #0F2A43;
+      --aqua: #0EA5A4;
+      --clay: #D97706;
+      --fog: #F4F7FA;
+    }
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background-color: var(--fog); color: var(--navy); }
+    .nav-link { transition: all 0.16s ease; }
+    .nav-link.active { color: #0F2A43; background-color: #E0F2FE; font-weight: 700; }
+    .mode-pill.active { background-color: #0F2A43; color: #ffffff; }
+    .map-state { transition: fill 0.2s ease, stroke-width 0.2s ease; cursor: pointer; }
+    .map-state:hover { stroke: #0F2A43; stroke-width: 1.4px; filter: brightness(0.95); }
+    .wi-card { background: #ffffff; border: 1px solid #E2E8F0; border-radius: 1rem; box-shadow: 0 1px 3px rgba(15, 42, 67, 0.04); }
+    @media print {
+      .no-print { display: none !important; }
+      body { background: #ffffff; }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-40 no-print">
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-[#0EA5A4] to-[#0284C7] flex items-center justify-center shadow-sm shrink-0">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2.1" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9.5 14.5c1 .8 2.2 1 3.5.5 1.1-.4 1.8-1.3 2-2.5" opacity="0.85" />
+          </svg>
+        </div>
+        <div>
+          <span class="text-base font-extrabold tracking-tight text-[#0F2A43] block leading-tight">WaterIntel India</span>
+          <p id="hdr-subtitle" class="text-[11px] font-medium text-slate-500 leading-none mt-0.5">Trusted Data. Resilient Tomorrow.</p>
+        </div>
+      </div>
+
+      <nav class="flex items-center gap-1 overflow-x-auto py-0.5" aria-label="Primary Navigation">
+        <button data-tab="dashboard" class="tab-btn nav-link active text-xs font-semibold px-3 py-1.5 rounded-lg whitespace-nowrap">Dashboard</button>
+        <button data-tab="location" class="tab-btn nav-link text-slate-600 hover:bg-slate-100 text-xs font-semibold px-3 py-1.5 rounded-lg whitespace-nowrap">Location Report</button>
+        <button data-tab="calculators" class="tab-btn nav-link text-slate-600 hover:bg-slate-100 text-xs font-semibold px-3 py-1.5 rounded-lg whitespace-nowrap">WISW &amp; Calculators</button>
+        <button data-tab="dams" class="tab-btn nav-link text-slate-600 hover:bg-slate-100 text-xs font-semibold px-3 py-1.5 rounded-lg whitespace-nowrap">Dams &amp; Groundwater</button>
+        <button data-tab="solutions" class="tab-btn nav-link text-slate-600 hover:bg-slate-100 text-xs font-semibold px-3 py-1.5 rounded-lg whitespace-nowrap">Data &amp; Solutions</button>
+      </nav>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="bg-slate-100 p-0.5 rounded-lg flex items-center border border-slate-200" role="group" aria-label="Experience Mode">
+          <button id="btn-mode-simple" type="button" class="mode-pill active text-[11px] font-semibold px-2.5 py-1 rounded-md transition">
+            <span id="lbl-mode-simple">Simple</span>
+          </button>
+          <button id="btn-mode-tech" type="button" class="mode-pill text-slate-600 hover:text-slate-900 text-[11px] font-semibold px-2.5 py-1 rounded-md transition">
+            <span id="lbl-mode-tech">Technical</span>
+          </button>
+        </div>
+
+        <select id="lang-select" aria-label="Select Language" class="bg-white text-slate-700 text-[11px] font-semibold rounded-lg px-2 py-1.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]">
+          <option value="en">English</option>
+          <option value="hi">हिन्दी (Hindi)</option>
+          <option value="mr">मराठी (Marathi)</option>
+          <option value="te">తెలుగు (Telugu)</option>
+          <option value="bn">বাংলা (Bengali)</option>
+          <option value="ta">தமிழ் (Tamil)</option>
+          <option value="as">অসমীয়া (Assamese)</option>
+          <option value="brx">बड़ो (Bodo)</option>
+          <option value="doi">डोगरी (Dogri)</option>
+          <option value="gu">ગુજરાતી (Gujarati)</option>
+          <option value="kn">ಕನ್ನಡ (Kannada)</option>
+          <option value="ks">कॉशुर (Kashmiri)</option>
+          <option value="kok">कोंकणी (Konkani)</option>
+          <option value="mai">मैथिली (Maithili)</option>
+          <option value="ml">മലയാളം (Malayalam)</option>
+          <option value="mni">মৈতৈলোন্ (Manipuri)</option>
+          <option value="ne">नेपाली (Nepali)</option>
+          <option value="or">ଓଡ଼ିଆ (Odia)</option>
+          <option value="pa">ਪੰਜਾਬੀ (Punjabi)</option>
+          <option value="sa">संस्कृतम् (Sanskrit)</option>
+          <option value="sat">ᱥᱟᱱᱛᱟᱲᱤ (Santali)</option>
+          <option value="sd">سنڌي (Sindhi)</option>
+          <option value="ur">اردو (Urdu)</option>
+        </select>
+
+        <button id="btn-export-report" type="button" class="bg-[#0F2A43] hover:bg-slate-800 text-white text-[11px] font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg>
+          <span id="lbl-export">Export Report</span>
+        </button>
+      </div>
+    </div>
+    <div id="lang-notice" class="hidden bg-sky-50 border-t border-sky-200 px-4 py-1 text-center text-[11px] text-[#0F2A43]"></div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-5 space-y-5">
+    <section id="data-integrity-banner" role="status" class="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-950">
+      <strong class="block mb-1">Data integrity &amp; limitations</strong>
+      Weather and river-discharge values are third-party model outputs, not local rain-gauge or river-station observations. Fetch time is not the observation or model-initialisation time. State-level reservoir and groundwater layers, verified population data, and an operational AI prediction model are not connected in this release. Do not use this dashboard alone for safety-critical or allocation decisions.
+    </section>
+
+    <!-- TAB 1: HERO DIGITAL TWIN DASHBOARD -->
+    <section id="tab-dashboard" class="tab-panel space-y-5">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+
+        <!-- Left Column: Hero Title, Any-India Search, National Metrics -->
+        <div class="lg:col-span-4 flex flex-col justify-between space-y-4">
+          <div class="wi-card p-5 space-y-4">
+            <div>
+              <span class="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-teal-50 text-[#0EA5A4] border border-teal-200 mb-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-[#0EA5A4] animate-pulse"></span> Online Model Data
+              </span>
+              <h1 class="text-2xl sm:text-3xl font-extrabold text-[#0F2A43] leading-tight tracking-tight">
+                Data for a Water Secure India
+              </h1>
+              <p class="text-xs sm:text-sm text-slate-600 mt-1.5 leading-relaxed">
+                Search a place or coordinate to view available weather-model data. Official groundwater, reservoir and gauge feeds are not yet integrated.
+              </p>
+            </div>
+
+            <!-- Pan-India Live Search -->
+            <div class="space-y-2 relative">
+              <label for="coord-input" id="lbl-active-loc" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500">Select Location Across India</label>
+              <div class="flex items-center gap-1.5">
+                <div class="relative flex-1">
+                  <input id="coord-input" type="text" autocomplete="off" placeholder="Type any city, village, district, or lat,lng..." class="w-full bg-slate-50 border border-slate-300 rounded-lg pl-8 pr-2.5 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]" />
+                  <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                </div>
+                <button id="btn-coord-go" type="button" class="bg-[#0F2A43] hover:bg-slate-800 text-white text-xs font-semibold px-3 py-2 rounded-lg transition">Search</button>
+              </div>
+              <!-- Live Search Results Dropdown -->
+              <div id="search-results" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-30 max-h-56 overflow-y-auto divide-y divide-slate-100"></div>
+              <p id="search-status" class="text-[11px] text-slate-500 min-h-[16px]"></p>
+            </div>
+
+            <!-- Reference metrics: retained as indicative values, not live telemetry -->
+            <div class="grid grid-cols-3 gap-2 pt-1">
+              <div class="bg-[#F4F7FA] rounded-xl p-2.5 border border-slate-200">
+                <div class="text-base sm:text-lg font-extrabold text-[#0F2A43]">N/A</div>
+                <div class="text-[10px] font-medium text-slate-500 leading-tight">District coverage feed not connected</div>
+              </div>
+              <div class="bg-[#F4F7FA] rounded-xl p-2.5 border border-slate-200">
+                <div class="text-base sm:text-lg font-extrabold text-[#0EA5A4]">N/A</div>
+                <div class="text-[10px] font-medium text-slate-500 leading-tight">CGWB dataset not connected</div>
+              </div>
+              <div class="bg-[#F4F7FA] rounded-xl p-2.5 border border-slate-200">
+                <div class="text-base sm:text-lg font-extrabold text-[#0284C7]">N/A</div>
+                <div class="text-[10px] font-medium text-slate-500 leading-tight">Recharge dataset not connected</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- WISW Quick Spotlight -->
+          <div class="wi-card p-4 bg-gradient-to-br from-[#0F2A43] to-[#163A59] text-white space-y-2.5">
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-bold uppercase tracking-wider text-teal-300">Water in Simple Words (WISW)</span>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-white/10 text-slate-200">Unit Engine</span>
+            </div>
+            <p class="text-xs text-slate-200 leading-relaxed">
+              Converts hydrological volumes (TMC, BCM, m³) into litres and illustrative container counts. Supply-day estimates require a verified population and demand input.
+            </p>
+            <div class="flex items-center justify-between pt-1">
+              <span class="text-[11px] text-slate-300 italic">Our Water. Our Shared Future.</span>
+              <button id="btn-goto-wisw" type="button" class="text-[11px] font-bold text-teal-300 hover:text-white underline">Open WISW →</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Center Column: Interactive Click-Anywhere India Map -->
+        <div class="lg:col-span-5 wi-card p-4 flex flex-col">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+            <div>
+              <h2 class="text-sm font-bold text-[#0F2A43]">India Water Basin Digital Twin</h2>
+              <p class="text-[11px] text-slate-500" id="map-layer-legend">Boundary reference only — click to inspect an approximate map point; no state-level water layer is connected</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-1">
+              <button data-layer="rainfall" class="layer-btn bg-[#0F2A43] text-white text-[11px] font-semibold px-2.5 py-1 rounded-md">Rainfall</button>
+              <button data-layer="reservoirs" class="layer-btn bg-slate-100 text-slate-700 hover:bg-slate-200 text-[11px] font-semibold px-2.5 py-1 rounded-md">Reservoirs</button>
+              <button data-layer="groundwater" class="layer-btn bg-slate-100 text-slate-700 hover:bg-slate-200 text-[11px] font-semibold px-2.5 py-1 rounded-md">Groundwater</button>
+              <button id="btn-map-reset" type="button" class="bg-slate-100 text-slate-700 hover:bg-slate-200 text-[11px] font-semibold px-2 py-1 rounded-md">Reset</button>
+            </div>
+          </div>
+
+          <div id="india-map-container" class="relative w-full flex-1 min-h-[340px] sm:min-h-[390px] bg-[#F4F7FA] rounded-xl border border-slate-200 overflow-hidden flex items-center justify-center">
+            <div id="map-loading" class="text-xs text-slate-500 font-medium">Loading India GeoJSON boundaries...</div>
+            <div id="map-tooltip" class="hidden absolute pointer-events-none bg-[#0F2A43]/95 text-white text-xs px-3 py-2 rounded-lg shadow-lg z-20 max-w-xs"></div>
+
+            <div class="absolute top-2.5 right-2.5 bg-white/95 backdrop-blur-sm border border-slate-200 rounded-lg p-2 text-[10px] space-y-1 shadow-sm pointer-events-none">
+              <div class="font-bold text-[#0F2A43] mb-0.5">Map coverage status</div>
+              <div class="text-slate-600">State boundaries only. Verified live rainfall, reservoir and groundwater layers are not connected.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Select Location Prompt -> Live Telemetry & Gauges -->
+        <div class="lg:col-span-3 flex flex-col space-y-4">
+          <!-- Initial Empty State OR Live Selected Location Card -->
+          <div id="loc-card-empty" class="wi-card p-5 flex-1 flex flex-col items-center justify-center text-center space-y-3 border-dashed border-2 border-slate-300 bg-slate-50/60">
+            <div class="w-12 h-12 rounded-full bg-teal-50 border border-teal-200 flex items-center justify-center text-[#0EA5A4]">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-[#0F2A43]">Select a Location</h3>
+              <p class="text-xs text-slate-500 mt-1 leading-relaxed">Search a place or choose a map point to load available modelled rainfall, ET₀ and river-discharge estimates.</p>
+            </div>
+            <div class="w-full pt-2">
+              <label for="location-select" class="sr-only">Quick Select State or Station</label>
+              <select id="location-select" class="w-full bg-white border border-slate-300 text-[#0F2A43] text-xs font-semibold rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]">
+                <option value="">-- Select a location --</option>
+                <option value="25.6022,85.1194,Patna,Bihar">Patna, Bihar</option>
+                <option value="18.5204,73.8567,Pune,Maharashtra">Pune, Maharashtra</option>
+                <option value="16.5062,80.6480,Vijayawada,Andhra Pradesh">Vijayawada, Andhra Pradesh</option>
+                <option value="22.2839,76.4714,Indirasagar Dam,Madhya Pradesh">Indirasagar Dam, MP</option>
+                <option value="16.5731,79.3131,Nagarjuna Sagar,Telangana/AP">Nagarjuna Sagar, AP/TG</option>
+                <option value="28.6139,77.2090,New Delhi,Delhi">New Delhi, Delhi</option>
+                <option value="12.9716,77.5946,Bengaluru,Karnataka">Bengaluru, Karnataka</option>
+                <option value="26.9124,75.7873,Jaipur,Rajasthan">Jaipur, Rajasthan</option>
+                <option value="26.1445,91.7362,Guwahati,Assam">Guwahati, Assam</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="loc-card-live" class="hidden flex-col space-y-4 flex-1">
+            <div class="wi-card p-4 space-y-2.5">
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <span class="inline-flex items-center gap-1 text-[10px] font-bold uppercase text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Open-Meteo model output
+                  </span>
+                  <h3 id="live-loc-name" class="text-sm font-extrabold text-[#0F2A43] mt-1">—</h3>
+                  <p id="live-loc-coords" class="text-[10px] text-slate-500">—</p>
+                </div>
+                <button id="btn-refresh-live" type="button" class="text-[11px] font-semibold text-[#0EA5A4] hover:underline">Refresh</button>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2 text-xs pt-1">
+                <div class="bg-[#F4F7FA] p-2 rounded-lg border border-slate-200">
+                  <span class="text-[10px] text-slate-500 block">Past 30d modelled rain</span>
+                  <strong id="live-rain-30d" class="text-sm text-[#0F2A43]">—</strong>
+                </div>
+                <div class="bg-[#F4F7FA] p-2 rounded-lg border border-slate-200">
+                  <span class="text-[10px] text-slate-500 block">Next 7d Forecast</span>
+                  <strong id="live-rain-7d" class="text-sm text-[#0284C7]">—</strong>
+                </div>
+                <div class="bg-[#F4F7FA] p-2 rounded-lg border border-slate-200">
+                  <span class="text-[10px] text-slate-500 block">River Discharge</span>
+                  <strong id="live-discharge" class="text-sm text-[#0EA5A4]">—</strong>
+                </div>
+                <div class="bg-[#F4F7FA] p-2 rounded-lg border border-slate-200">
+                  <span class="text-[10px] text-slate-500 block">30d ET0 Loss</span>
+                  <strong id="live-et0" class="text-sm text-[#D97706]">—</strong>
+                </div>
+              </div>
+
+              <button id="btn-open-full-report" type="button" class="w-full bg-[#0EA5A4] hover:bg-teal-700 text-white text-xs font-semibold py-2 rounded-lg transition">
+                View Full Location Report →
+              </button>
+            </div>
+
+            <!-- 7-Day Model Rainfall Forecast -->
+            <div class="wi-card p-4 flex-1 flex flex-col">
+              <div class="flex items-center justify-between mb-1">
+                <h3 class="text-xs font-bold text-[#0F2A43]">7-Day Rainfall Forecast (mm)</h3>
+                <span id="live-updated-at" class="text-[10px] text-slate-400">Live</span>
+              </div>
+              <div class="relative h-36">
+                <canvas id="chart-live-rain"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- National Circular Gauges -->
+          <div class="wi-card p-4 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <h3 class="text-xs font-bold text-[#0F2A43]">National Baseline Gauges</h3>
+              <span class="text-[10px] text-slate-400">IMD / CGWB</span>
+            </div>
+            <div class="grid grid-cols-3 gap-2 text-center">
+              <div class="flex flex-col items-center">
+                <svg class="w-14 h-14 -rotate-90" viewBox="0 0 36 36">
+                  <circle cx="18" cy="18" r="15" fill="none" stroke="#E2E8F0" stroke-width="3.5" />
+                  <circle cx="18" cy="18" r="15" fill="none" stroke="#0EA5A4" stroke-width="3.5" stroke-dasharray="94.2" stroke-dashoffset="0" stroke-linecap="round" />
+                </svg>
+                <span class="-mt-10 mb-5 text-[11px] font-extrabold text-[#0F2A43]">N/A</span>
+                <span class="text-[9px] font-semibold text-slate-600 leading-tight">IMD live monsoon feed not connected</span>
+              </div>
+              <div class="flex flex-col items-center">
+                <svg class="w-14 h-14 -rotate-90" viewBox="0 0 36 36">
+                  <circle cx="18" cy="18" r="15" fill="none" stroke="#E2E8F0" stroke-width="3.5" />
+                  <circle cx="18" cy="18" r="15" fill="none" stroke="#D97706" stroke-width="3.5" stroke-dasharray="94.2" stroke-dashoffset="37.1" stroke-linecap="round" />
+                </svg>
+                <span class="-mt-10 mb-5 text-[11px] font-extrabold text-[#0F2A43]">N/A</span>
+                <span class="text-[9px] font-semibold text-slate-600 leading-tight">Live extraction feed not connected</span>
+              </div>
+              <div class="flex flex-col items-center">
+                <svg class="w-14 h-14 -rotate-90" viewBox="0 0 36 36">
+                  <circle cx="18" cy="18" r="15" fill="none" stroke="#E2E8F0" stroke-width="3.5" />
+                  <circle cx="18" cy="18" r="15" fill="none" stroke="#0F2A43" stroke-width="3.5" stroke-dasharray="94.2" stroke-dashoffset="25.1" stroke-linecap="round" />
+                </svg>
+                <span class="-mt-10 mb-5 text-[11px] font-extrabold text-[#0F2A43]">N/A</span>
+                <span class="text-[9px] font-semibold text-slate-600 leading-tight">CGWB dataset not connected</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Official Data Sources Strip -->
+      <div class="wi-card px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-4 text-[11px] text-slate-600">
+          <span class="font-bold text-[#0F2A43] uppercase tracking-wider text-[10px]">Data &amp; Telemetry Sources:</span>
+          <span class="font-semibold">Open-Meteo Weather &amp; GloFAS <span class="text-emerald-600 font-normal">(API model data)</span></span>
+          <span class="font-semibold">IMD <span class="text-slate-400 font-normal">(1971–2020 LPA)</span></span>
+          <span class="font-semibold">CGWB <span class="text-slate-400 font-normal">(2025 Assessment)</span></span>
+          <span class="font-semibold">CWC / APWRIMS <span class="text-slate-400 font-normal">(Reservoirs)</span></span>
+          <span class="font-semibold">NRSC / NWIC <span class="text-slate-400 font-normal">(Basins)</span></span>
+        </div>
+        <div class="flex items-center gap-2 text-[10px]">
+          <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">Model/API data</span>
+          <span class="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 font-semibold border border-amber-200">L2 Modelled</span>
+          <span class="px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 font-semibold border border-sky-200">Official Baseline</span>
+        </div>
+      </div>
+
+      <!-- National Charts Row -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div class="wi-card p-4">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-bold text-[#0F2A43]">IMD All-India Monsoon Normal (1971–2020 LPA)</h3>
+            <span class="text-[11px] text-slate-500">Total Jun–Sep: 868.6 mm</span>
+          </div>
+          <div class="relative h-56">
+            <canvas id="chart-monsoon"></canvas>
+          </div>
+        </div>
+        <div class="wi-card p-4">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-bold text-[#0F2A43]">CGWB Groundwater Assessment — data not connected</h3>
+            <span class="text-[11px] text-slate-500">CGWB assessment feed not connected</span>
+          </div>
+          <div class="relative h-56">
+            <canvas id="chart-cgwb"></canvas>
+            <p class="text-[10px] text-slate-500 mt-2">CGWB assessment chart is a placeholder until a dated, source-verified dataset is integrated. No live groundwater status is shown.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: LOCATION WATER REPORT & RAIN-TO-RESERVOIR FLOW -->
+    <section id="tab-location" class="tab-panel hidden space-y-5">
+      <div id="loc-report-empty" class="wi-card p-10 text-center space-y-3">
+        <h2 class="text-lg font-extrabold text-[#0F2A43]">No Location Selected Yet</h2>
+        <p class="text-xs text-slate-600 max-w-md mx-auto">Go to the Dashboard, search for any city, village, district, or PIN code in India, or click anywhere on the India map to generate a weather-model report.</p>
+        <button id="btn-back-to-dash" type="button" class="bg-[#0F2A43] text-white text-xs font-semibold px-4 py-2 rounded-lg">Select Location on Dashboard</button>
+      </div>
+
+      <div id="loc-report-content" class="hidden wi-card p-5 space-y-5">
+        <div class="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-lg font-extrabold text-[#0F2A43]" id="loc-rep-title">—</h2>
+              <span id="loc-rep-badge" class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Model Data (not station observations)</span>
+            </div>
+            <p class="text-xs text-slate-500 mt-1" id="loc-rep-meta"></p>
+          </div>
+          <div class="text-right">
+            <span class="text-[11px] font-semibold text-slate-500 block">Active Explanation Mode</span>
+            <span id="loc-rep-mode-label" class="text-xs font-bold text-[#0EA5A4]">Simple View (Citizen / Farmer)</span>
+          </div>
+        </div>
+
+        <div id="loc-rep-narrative" class="p-4 rounded-xl bg-[#F4F7FA] border border-slate-200 text-sm text-slate-800 leading-relaxed"></div>
+
+        <!-- Past 30-Day Live Precipitation vs Evapotranspiration Chart -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-bold text-[#0F2A43]">30-Day Modelled Precipitation vs. Evapotranspiration (ET0)</h3>
+            <span class="text-[11px] text-slate-500">Source: Open-Meteo model output</span>
+          </div>
+          <div class="relative h-60">
+            <canvas id="chart-live-history"></canvas>
+          </div>
+        </div>
+
+        <!-- Rain-to-Reservoir Tracking Chain -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-bold text-[#0F2A43]">Rain-to-Reservoir Tracking (Watershed Flow Chain)</h3>
+            <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-[#D97706] border border-amber-200">GloFAS River Grid + Modelled Path</span>
+          </div>
+          <div id="flow-chain-container" class="grid grid-cols-1 sm:grid-cols-5 gap-2"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="p-4 rounded-xl border border-slate-200 bg-white">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500">Water Balance (30d P − ET0)</h4>
+            <p class="text-sm font-bold text-[#0F2A43] mt-1" id="loc-drought-status">—</p>
+            <p class="text-xs text-slate-600 mt-1" id="loc-drought-note">—</p>
+          </div>
+          <div class="p-4 rounded-xl border border-slate-200 bg-white">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500">River Discharge &amp; Flood Signal</h4>
+            <p class="text-sm font-bold text-[#0F2A43] mt-1" id="loc-flood-status">—</p>
+            <p class="text-xs text-slate-600 mt-1" id="loc-flood-note">—</p>
+          </div>
+          <div class="p-4 rounded-xl border border-slate-200 bg-white">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500">Rainwater Opportunity (1 km² Est.)</h4>
+            <p class="text-sm font-bold text-[#0F2A43] mt-1" id="loc-loss-status">—</p>
+            <p class="text-xs text-slate-600 mt-1" id="loc-loss-note">—</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: WISW, RAINWATER CALCULATOR & SUSTAINABILITY SCENARIOS -->
+    <section id="tab-calculators" class="tab-panel hidden space-y-5">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div class="wi-card p-5 space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-base font-bold text-[#0F2A43]">Water in Simple Words (WISW) Engine</h2>
+              <p class="text-xs text-slate-500">Optional population-aware supply estimate</p>
+            </div>
+            <span class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-teal-50 text-[#0EA5A4] border border-teal-200">Core Innovation</span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="wisw-val" class="block text-xs font-semibold text-slate-700 mb-1">Water Volume</label>
+              <input id="wisw-val" type="number" step="any" min="0" value="0.0014" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-semibold focus:ring-2 focus:ring-[#0EA5A4] focus:outline-none" />
+            </div>
+            <div>
+              <label for="wisw-unit" class="block text-xs font-semibold text-slate-700 mb-1">Unit</label>
+              <select id="wisw-unit" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-semibold focus:ring-2 focus:ring-[#0EA5A4] focus:outline-none">
+                <option value="TMC" selected>TMC (Thousand Million Cu. Ft.)</option>
+                <option value="BCM">BCM (Billion Cubic Metres)</option>
+                <option value="MCM">MCM (Million Cubic Metres)</option>
+                <option value="ML">ML (Million Litres)</option>
+                <option value="M3">m³ (Cubic Metres)</option>
+              </select>
+            </div>
+            <div>
+              <label for="wisw-pop" class="block text-xs font-semibold text-slate-700 mb-1">Verified population (P)</label>
+              <input id="wisw-pop" type="number" min="1" value="" placeholder="Enter verified population" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-semibold focus:ring-2 focus:ring-[#0EA5A4] focus:outline-none" />
+            </div>
+            <div>
+              <label for="wisw-lpcd" class="block text-xs font-semibold text-slate-700 mb-1">Demand (L/person/day)</label>
+              <input id="wisw-lpcd" type="number" min="1" value="55" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-semibold focus:ring-2 focus:ring-[#0EA5A4] focus:outline-none" />
+            </div>
+          </div>
+
+          <div class="bg-[#0F2A43] text-white rounded-xl p-4 space-y-2">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+              <span class="text-xs text-slate-300">Equivalent Volume</span>
+              <span id="wisw-out-ml" class="text-base font-bold text-teal-300">39.64 Million Litres</span>
+            </div>
+            <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+              <span class="text-xs text-slate-300">Cubic Metres (m³)</span>
+              <span id="wisw-out-m3" class="text-sm font-semibold">39,644 m³</span>
+            </div>
+            <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+              <span class="text-xs text-slate-300">2.5-Litre Containers</span>
+              <span id="wisw-out-bottles" class="text-sm font-semibold text-sky-300">15.86 Million containers</span>
+            </div>
+            <div class="flex justify-between items-center pt-1">
+              <span class="text-xs text-slate-300">Theoretical Domestic Supply</span>
+              <span id="wisw-out-days" class="text-base font-extrabold text-amber-300">720.8 days (1.97 yrs)</span>
+            </div>
+          </div>
+
+          <p class="text-[11px] text-slate-600 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+            <strong>Assumption Disclosure:</strong> Daily demand <code class="font-mono">D = P × d</code> assumes 100% accessible volume, zero distribution losses, and excludes agricultural/industrial/ecological demand.
+          </p>
+        </div>
+
+        <div class="wi-card p-5 space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-base font-bold text-[#0F2A43]">Rainwater Potential &amp; Water Budget</h2>
+              <p class="text-xs text-slate-500">Formula: <span class="font-mono">V = (R × A × C) / 1000</span> (can be populated from selected location modelled 30-day rainfall)</p>
+            </div>
+            <span class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-[#D97706] border border-amber-200">L2 Modelled</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label for="rw-rain" class="block text-xs font-semibold text-slate-700 mb-1">Rainfall R (mm)</label>
+              <input id="rw-rain" type="number" min="0" value="100" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-semibold" />
+            </div>
+            <div>
+              <label for="rw-area" class="block text-xs font-semibold text-slate-700 mb-1">Area A (m²)</label>
+              <input id="rw-area" type="number" min="1" value="1000000" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-semibold" />
+            </div>
+            <div>
+              <label for="rw-coeff" class="block text-xs font-semibold text-slate-700 mb-1">Runoff Coeff C (<span id="rw-coeff-val">0.30</span>)</label>
+              <input id="rw-coeff" type="range" min="0" max="0.90" step="0.05" value="0.30" class="w-full mt-2 accent-[#0EA5A4]" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2.5 text-center">
+            <div class="bg-[#F4F7FA] border border-slate-200 rounded-lg p-2.5">
+              <div class="text-[11px] text-slate-600">Total Rain Volume</div>
+              <div id="rw-out-total" class="text-sm font-extrabold text-[#0F2A43]">100.0 ML</div>
+            </div>
+            <div class="bg-teal-50 border border-teal-200 rounded-lg p-2.5">
+              <div class="text-[11px] text-slate-600">Estimated Runoff</div>
+              <div id="rw-out-runoff" class="text-sm font-extrabold text-[#0EA5A4]">30.0 ML</div>
+            </div>
+            <div class="bg-sky-50 border border-sky-200 rounded-lg p-2.5">
+              <div class="text-[11px] text-slate-600">Remaining volume (not apportioned)</div>
+              <div id="rw-out-loss" class="text-sm font-extrabold text-[#0284C7]">70.0 ML (unallocated)</div>
+            </div>
+          </div>
+
+          <div class="relative h-48">
+            <canvas id="chart-waterbudget"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="wi-card p-5">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <div>
+            <h2 class="text-base font-bold text-[#0F2A43]">Water Sustainability Scenario Simulator (Module 12)</h2>
+            <p class="text-xs text-slate-500">Scenario estimates deducting dead storage, evaporation, and environmental flows</p>
+          </div>
+          <span class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-sky-50 text-[#0284C7] border border-sky-200">L3 Scenario Estimate</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+          <div>
+            <label for="sust-storage" class="block text-xs font-semibold text-slate-700 mb-1">Gross Stored Volume (ML)</label>
+            <input id="sust-storage" type="number" min="1" value="120" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-semibold" />
+          </div>
+          <div>
+            <label for="sust-deduct" class="block text-xs font-semibold text-slate-700 mb-1">Dead Storage &amp; Env. Flow (%)</label>
+            <input id="sust-deduct" type="number" min="0" max="80" value="25" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-semibold" />
+          </div>
+          <div>
+            <label for="sust-demand" class="block text-xs font-semibold text-slate-700 mb-1">Baseline Daily Demand (ML/day)</label>
+            <input id="sust-demand" type="number" min="0.01" step="0.05" value="0.50" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-semibold" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="p-4 rounded-xl bg-teal-50 border border-teal-200">
+            <div class="text-xs font-bold uppercase text-[#0EA5A4]">High Scenario (Reduced Demand -20%)</div>
+            <div id="sust-high" class="text-2xl font-extrabold text-[#0F2A43] mt-1">225 days</div>
+            <p class="text-xs text-slate-600 mt-1">With conservation &amp; demand management</p>
+          </div>
+          <div class="p-4 rounded-xl bg-sky-50 border border-sky-200">
+            <div class="text-xs font-bold uppercase text-[#0284C7]">Central Scenario (Current Demand)</div>
+            <div id="sust-central" class="text-2xl font-extrabold text-[#0F2A43] mt-1">180 days</div>
+            <p class="text-xs text-slate-600 mt-1">Usable volume: <span id="sust-usable">90.0 ML</span></p>
+          </div>
+          <div class="p-4 rounded-xl bg-amber-50 border border-amber-200">
+            <div class="text-xs font-bold uppercase text-[#D97706]">Low Scenario (High Demand +30%)</div>
+            <div id="sust-low" class="text-2xl font-extrabold text-[#0F2A43] mt-1">138 days</div>
+            <p class="text-xs text-slate-600 mt-1">Peak summer / agricultural stress</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: DAMS, RIVERS & GROUNDWATER INTELLIGENCE -->
+    <section id="tab-dams" class="tab-panel hidden space-y-5">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div class="wi-card p-5 space-y-3">
+          <div class="flex items-start justify-between">
+            <div>
+              <h3 class="text-base font-bold text-[#0F2A43]">Indirasagar Dam (Madhya Pradesh)</h3>
+              <p class="text-xs text-slate-500">Narmada River • 22°17′02″N, 76°28′17″E • Khandwa District</p>
+            </div>
+            <span class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Reference specifications — verify with CWC / NHDC</span>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
+            <div class="bg-[#F4F7FA] p-2.5 rounded-lg border border-slate-200">
+              <span class="text-slate-500 block">Gross Capacity</span>
+              <strong class="text-[#0F2A43] text-sm">12.22 BCM</strong>
+              <span class="text-[10px] text-slate-500 block">(430.84 TMC)</span>
+            </div>
+            <div class="bg-[#F4F7FA] p-2.5 rounded-lg border border-slate-200">
+              <span class="text-slate-500 block">Current Storage</span>
+              <strong class="text-[#0EA5A4] text-sm">Not connected</strong>
+              <span class="text-[10px] text-slate-500 block">No current CWC storage feed</span>
+            </div>
+            <div class="bg-[#F4F7FA] p-2.5 rounded-lg border border-slate-200">
+              <span class="text-slate-500 block">FRL / MDDL</span>
+              <strong class="text-[#0F2A43] text-sm">262.13 / 243.25 m</strong>
+            </div>
+            <div class="bg-[#F4F7FA] p-2.5 rounded-lg border border-slate-200">
+              <span class="text-slate-500 block">Catchment Area</span>
+              <strong class="text-[#0F2A43] text-sm">61,642 km²</strong>
+            </div>
+            <div class="bg-[#F4F7FA] p-2.5 rounded-lg border border-slate-200">
+              <span class="text-slate-500 block">Hydropower</span>
+              <strong class="text-[#0F2A43] text-sm">1,000 MW</strong>
+            </div>
+            <div class="bg-[#F4F7FA] p-2.5 rounded-lg border border-slate-200">
+              <span class="text-slate-500 block">Dam Dimensions</span>
+              <strong class="text-[#0F2A43] text-sm">92 m H × 653 m L</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="wi-card p-5 space-y-3">
+          <div class="flex items-start justify-between">
+            <div>
+              <h3 class="text-base font-bold text-[#0F2A43]">Nagarjuna Sagar Dam (AP / Telangana)</h3>
+              <p class="text-xs text-slate-500">Krishna River • 16°34′23″N, 79°18′47″E • Palnadu / Nalgonda</p>
+            </div>
+            <span class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Reference specifications — verify with APWRIMS / CWC</span>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
+            <div class="bg-[#F4F7FA] p-2.5 rounded-lg border border-slate-200">
+              <span class="text-slate-500 block">Gross Capacity (FRL)</span>
+              <strong class="text-[#0F2A43] text-sm">312.05 TMC</strong>
+              <span class="text-[10px] text-slate-500 block">(~11.47 BCM original)</span>
+            </div>
+            <div class="bg-[#F4F7FA] p-2.5 rounded-lg border border-slate-200">
+              <span class="text-slate-500 block">Current Storage</span>
+              <strong class="text-[#0EA5A4] text-sm">Not connected</strong>
+              <span class="text-[10px] text-slate-500 block">No current APWRIMS/CWC feed</span>
+            </div>
+            <div class="bg-[#F4F7FA] p-2.5 rounded-lg border border-slate-200">
+              <span class="text-slate-500 block">Full Reservoir Level</span>
+              <strong class="text-[#0F2A43] text-sm">179.83 m (590 ft)</strong>
+            </div>
+            <div class="bg-[#F4F7FA] p-2.5 rounded-lg border border-slate-200">
+              <span class="text-slate-500 block">Catchment Area</span>
+              <strong class="text-[#0F2A43] text-sm">215,185 km²</strong>
+            </div>
+            <div class="bg-[#F4F7FA] p-2.5 rounded-lg border border-slate-200">
+              <span class="text-slate-500 block">Flood Gates</span>
+              <strong class="text-[#0F2A43] text-sm">26 Spillway Gates</strong>
+            </div>
+            <div class="bg-[#F4F7FA] p-2.5 rounded-lg border border-slate-200">
+              <span class="text-slate-500 block">Water Spread (FRL)</span>
+              <strong class="text-[#0F2A43] text-sm">285 km²</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="wi-card p-5 border-l-4 border-l-[#0EA5A4]">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <h3 class="text-sm font-bold text-[#0F2A43]">Groundwater Intelligence: Key Scientific Distinctions (CGWB)</h3>
+          <span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700">Module 7</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-700 leading-relaxed">
+          <div class="bg-[#F4F7FA] p-3 rounded-lg border border-slate-200">
+            <strong class="text-[#0F2A43] block mb-1">Depth Below Ground Level (m bgl) ≠ Water Column</strong>
+            A reading of <strong>15 metres below ground level</strong> describes the depth to the water table at that monitoring well—it does <em>not</em> mean 15 metres of water is available for extraction.
+          </div>
+          <div class="bg-[#F4F7FA] p-3 rounded-lg border border-slate-200">
+            <strong class="text-[#0F2A43] block mb-1">Periodic vs. Telemetry Monitoring</strong>
+            CGWB measures most observation wells periodically (pre- and post-monsoon), while select DWLR telemetry stations transmit hourly readings. Interfaces must never label periodic readings as live data.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 5: SOLUTIONS, AI ADVISORY & OFFICIAL DATA REGISTRY -->
+    <section id="tab-solutions" class="tab-panel hidden space-y-5">
+      <div class="wi-card p-5 bg-gradient-to-r from-[#0F2A43] to-[#163A59] text-white">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-[#0EA5A4]"></span>
+            <h2 class="text-sm font-bold uppercase tracking-wider text-teal-300">Rule-Based Advisory (Prototype) (Module 14)</h2>
+          </div>
+          <span class="text-[10px] px-2 py-0.5 rounded bg-white/10 text-slate-200 border border-white/20">Advisory Only • Requires Site Verification</span>
+        </div>
+        <p id="ai-advisory-text" class="text-sm text-slate-100 leading-relaxed">Select a location on the Dashboard to generate a site-specific water conservation advisory from live rainfall, evapotranspiration, and river discharge signals.</p>
+        <p class="text-[11px] text-slate-300 mt-2">Guardrail: This prototype does not invent measurements or independently authorize reservoir releases, groundwater extraction, or public water allocation.</p>
+      </div>
+
+      <div class="wi-card p-5">
+        <h2 class="text-base font-bold text-[#0F2A43] mb-3">Local Water Recovery Solutions (Module 13)</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+          <div class="p-4 rounded-xl border border-slate-200 bg-[#F4F7FA] space-y-1.5">
+            <h3 class="font-bold text-[#0F2A43] text-sm">Rooftop Rainwater Harvesting</h3>
+            <p class="text-slate-600">Suitable where durable roofs and storage tanks/sumps can capture clean runoff.</p>
+            <div><strong>Verification:</strong> Roof area &amp; first-flush filter check</div>
+            <div><strong>Maintenance:</strong> Pre-monsoon gutter &amp; filter cleaning</div>
+          </div>
+          <div class="p-4 rounded-xl border border-slate-200 bg-[#F4F7FA] space-y-1.5">
+            <h3 class="font-bold text-[#0F2A43] text-sm">Recharge Pits &amp; Trenches</h3>
+            <p class="text-slate-600">Supports shallow aquifer recharge in permeable soils with declining water tables.</p>
+            <div><strong>Verification:</strong> Soil permeability &amp; contamination check</div>
+            <div><strong>Maintenance:</strong> Annual desilting of filter media</div>
+          </div>
+          <div class="p-4 rounded-xl border border-slate-200 bg-[#F4F7FA] space-y-1.5">
+            <h3 class="font-bold text-[#0F2A43] text-sm">Pond, Tank &amp; Check Dam Restoration</h3>
+            <p class="text-slate-600">Restores traditional storage and slows runoff where hydrological assessments support it.</p>
+            <div><strong>Verification:</strong> Watershed &amp; environmental flow study</div>
+            <div><strong>Maintenance:</strong> Gram Panchayat / WUA desilting</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="wi-card p-5">
+        <h2 class="text-base font-bold text-[#0F2A43] mb-2">Online &amp; Official Government Data Registry</h2>
+        <p class="text-xs text-slate-500 mb-3">Location search and weather-model values query public Open-Meteo APIs directly from the browser. River-discharge estimates are model-grid outputs where available. Official Indian government portals below are references only; reservoir and groundwater datasets are not integrated.</p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-slate-200 text-slate-500 uppercase text-[11px]">
+                <th class="py-2 pr-3">Agency / Service</th>
+                <th class="py-2 pr-3">Domain</th>
+                <th class="py-2 pr-3">Integration Status</th>
+                <th class="py-2">Official Portal</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr>
+                <td class="py-2.5 pr-3 font-semibold text-[#0F2A43]">Open-Meteo Weather &amp; Geocoding</td>
+                <td class="py-2.5 pr-3">Pan-India Location Search, Rainfall &amp; ET0</td>
+                <td class="py-2.5 pr-3 text-emerald-700 font-semibold">Connected in browser (model/API data)</td>
+                <td class="py-2.5"><a href="https://open-meteo.com/en/docs" target="_blank" rel="noopener noreferrer" class="text-[#0EA5A4] hover:underline font-semibold">open-meteo.com</a></td>
+              </tr>
+              <tr>
+                <td class="py-2.5 pr-3 font-semibold text-[#0F2A43]">Copernicus GloFAS v4 (Open-Meteo)</td>
+                <td class="py-2.5 pr-3">5 km River Discharge &amp; Flood Forecast</td>
+                <td class="py-2.5 pr-3 text-emerald-700 font-semibold">Connected in browser (model/API data)</td>
+                <td class="py-2.5"><a href="https://open-meteo.com/en/docs/flood-api" target="_blank" rel="noopener noreferrer" class="text-[#0EA5A4] hover:underline font-semibold">flood-api.open-meteo.com</a></td>
+              </tr>
+              <tr>
+                <td class="py-2.5 pr-3 font-semibold text-[#0F2A43]">IMD (MoES)</td>
+                <td class="py-2.5 pr-3">District/Subdivision Rainfall &amp; Warnings</td>
+                <td class="py-2.5 pr-3">Not connected in this frontend</td>
+                <td class="py-2.5"><a href="https://api.imd.gov.in/public/" target="_blank" rel="noopener noreferrer" class="text-[#0EA5A4] hover:underline font-semibold">api.imd.gov.in</a></td>
+              </tr>
+              <tr>
+                <td class="py-2.5 pr-3 font-semibold text-[#0F2A43]">CWC (RSMS)</td>
+                <td class="py-2.5 pr-3">Reservoir Storage &amp; River Monitoring</td>
+                <td class="py-2.5 pr-3">Not connected in this frontend</td>
+                <td class="py-2.5"><a href="https://rsms.cwc.gov.in/" target="_blank" rel="noopener noreferrer" class="text-[#0EA5A4] hover:underline font-semibold">rsms.cwc.gov.in</a></td>
+              </tr>
+              <tr>
+                <td class="py-2.5 pr-3 font-semibold text-[#0F2A43]">CGWB</td>
+                <td class="py-2.5 pr-3">Groundwater Levels &amp; Dynamic Assessment</td>
+                <td class="py-2.5 pr-3">Not connected in this frontend</td>
+                <td class="py-2.5"><a href="https://cgwb.gov.in/en/ground-water-level-monitoring" target="_blank" rel="noopener noreferrer" class="text-[#0EA5A4] hover:underline font-semibold">cgwb.gov.in</a></td>
+              </tr>
+              <tr>
+                <td class="py-2.5 pr-3 font-semibold text-[#0F2A43]">NWIC / India-WRIS</td>
+                <td class="py-2.5 pr-3">Integrated National Water Data Portal</td>
+                <td class="py-2.5 pr-3">Portal reference; API not connected</td>
+                <td class="py-2.5"><a href="https://nwdp.nwic.gov.in/" target="_blank" rel="noopener noreferrer" class="text-[#0EA5A4] hover:underline font-semibold">nwdp.nwic.gov.in</a></td>
+              </tr>
+              <tr>
+                <td class="py-2.5 pr-3 font-semibold text-[#0F2A43]">NRSC / ISRO (Bhuvan)</td>
+                <td class="py-2.5 pr-3">LULC, Watersheds &amp; Surface Water</td>
+                <td class="py-2.5 pr-3">Portal reference; layer not connected</td>
+                <td class="py-2.5"><a href="https://www.nrsc.gov.in/nrscnew/Apps_LULC_portals.php" target="_blank" rel="noopener noreferrer" class="text-[#0EA5A4] hover:underline font-semibold">nrsc.gov.in</a></td>
+              </tr>
+              <tr>
+                <td class="py-2.5 pr-3 font-semibold text-[#0F2A43]">OGD India</td>
+                <td class="py-2.5 pr-3">Open Government Rainfall Catalogues</td>
+                <td class="py-2.5 pr-3">Portal reference; dataset not integrated</td>
+                <td class="py-2.5"><a href="https://data.gov.in/catalog/rainfall" target="_blank" rel="noopener noreferrer" class="text-[#0EA5A4] hover:underline font-semibold">data.gov.in</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- In-Page Export Modal -->
+  <div id="export-modal" class="hidden fixed inset-0 bg-[#0F2A43]/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 no-print">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-bold text-[#0F2A43]">Export Location Water Report</h3>
+        <button id="btn-close-modal" type="button" class="text-slate-400 hover:text-slate-700 text-lg font-bold">&times;</button>
+      </div>
+      <p class="text-xs text-slate-600">Download a structured summary for <strong id="modal-loc-name">Selected Location</strong> with model data and retrieval provenance.</p>
+      <div class="flex flex-col sm:flex-row gap-2.5">
+        <button id="btn-dl-json" type="button" class="flex-1 bg-[#0EA5A4] hover:bg-teal-700 text-white text-xs font-semibold py-2.5 rounded-lg transition">Download JSON Report</button>
+        <button id="btn-print-report" type="button" class="flex-1 bg-[#0F2A43] hover:bg-slate-800 text-white text-xs font-semibold py-2.5 rounded-lg transition">Print / Save PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let state = {
+      mode: 'simple',
+      lang: 'en',
+      layer: 'rainfall',
+      activeTab: 'dashboard',
+      selected: null,
+      liveData: null
+    };
+
+    const TRANSLATIONS = {
+      en: { subtitle: 'Trusted Data. Resilient Tomorrow.', simple: 'Simple', tech: 'Technical', export: 'Export Report', activeLoc: 'Select Location Across India' },
+      hi: { subtitle: 'विश्वसनीय डेटा। सुरक्षित भविष्य।', simple: 'सरल', tech: 'तकनीकी', export: 'रिपोर्ट', activeLoc: 'भारत में स्थान चुनें' },
+      mr: { subtitle: 'विश्वसनीय डेटा. सुरक्षित उद्या.', simple: 'सोपे', tech: 'तांत्रिक', export: 'अहवाल', activeLoc: 'भारतातील ठिकाण निवडा' },
+      te: { subtitle: 'నమ్మకమైన డేటా. సురక్షిత భవిష్యత్తు.', simple: 'సరళం', tech: 'సాంకేతికం', export: 'నివేదిక', activeLoc: 'భారతదేశంలో ప్రదేశాన్ని ఎంచుకోండి' },
+      bn: { subtitle: 'নির্ভরযোগ্য তথ্য। সুরক্ষিত ভবিষ্যৎ।', simple: 'সহজ', tech: 'প্রযুক্তিগত', export: 'রিপোর্ট', activeLoc: 'ভারতে স্থান নির্বাচন করুন' },
+      ta: { subtitle: 'நம்பகமான தரவு. பாதுகாப்பான நாளைய தினம்.', simple: 'எளிய', tech: 'தொழில்நுட்பம்', export: 'அறிக்கை', activeLoc: 'இந்தியாவில் இடத்தைத் தேர்ந்தெடுக்கவும்' }
+    };
+
+    let liveRainChart = null;
+    let liveHistoryChart = null;
+    let budgetChart = null;
+
+    function switchTab(tabId) {
+      state.activeTab = tabId;
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        const isActive = btn.dataset.tab === tabId;
+        btn.classList.toggle('active', isActive);
+        btn.classList.toggle('text-slate-600', !isActive);
+      });
+      document.querySelectorAll('.tab-panel').forEach(panel => {
+        panel.classList.toggle('hidden', panel.id !== `tab-${tabId}`);
+      });
+    }
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
+
+    function setMode(mode) {
+      state.mode = mode;
+      document.getElementById('btn-mode-simple').classList.toggle('active', mode === 'simple');
+      document.getElementById('btn-mode-simple').classList.toggle('text-slate-600', mode !== 'simple');
+      document.getElementById('btn-mode-tech').classList.toggle('active', mode === 'tech');
+      document.getElementById('btn-mode-tech').classList.toggle('text-slate-600', mode !== 'tech');
+      if (state.selected && state.liveData) renderLiveLocation();
+    }
+    document.getElementById('btn-mode-simple').addEventListener('click', () => setMode('simple'));
+    document.getElementById('btn-mode-tech').addEventListener('click', () => setMode('tech'));
+
+    document.getElementById('lang-select').addEventListener('change', (e) => {
+      state.lang = e.target.value;
+      const t = TRANSLATIONS[state.lang] || TRANSLATIONS.en;
+      document.getElementById('hdr-subtitle').textContent = t.subtitle;
+      document.getElementById('lbl-mode-simple').textContent = t.simple;
+      document.getElementById('lbl-mode-tech').textContent = t.tech;
+      document.getElementById('lbl-export').textContent = t.export;
+      document.getElementById('lbl-active-loc').textContent = t.activeLoc;
+      const notice = document.getElementById('lang-notice');
+      if (!TRANSLATIONS[state.lang]) {
+        const label = e.target.options[e.target.selectedIndex].text;
+        notice.textContent = `Selected language: ${label}. This interface is not fully translated into this language yet; the dashboard remains in English.`;
+        notice.classList.remove('hidden');
+      } else {
+        notice.classList.add('hidden');
+      }
+    });
+
+    // --- Live Pan-India Geocoding & Online Water Data Fetch ---
+    async function searchIndiaLocation(query) {
+      const q = String(query || '').trim();
+      const statusEl = document.getElementById('search-status');
+      const resultsEl = document.getElementById('search-results');
+      if (!q) { statusEl.textContent = 'Enter a place name or latitude,longitude.'; return; }
+      const coordinateMatch = q.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+      if (coordinateMatch) {
+        const lat = Number(coordinateMatch[1]);
+        const lng = Number(coordinateMatch[2]);
+        if (lat < 6 || lat > 38 || lng < 68 || lng > 98) {
+          statusEl.textContent = 'Coordinates must be within India’s approximate geographic bounds.'; return;
+        }
+        resultsEl.classList.add('hidden');
+        selectLocation({ name: 'Custom map point', admin1: 'India (approximate)', lat, lng });
+        return;
+      }
+      statusEl.textContent = 'Searching Indian locations…';
+      resultsEl.replaceChildren();
+      resultsEl.classList.add('hidden');
+      try {
+        const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=8&language=en&format=json&countryCode=IN`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`Geocoding service returned ${res.status}`);
+        const data = await res.json();
+        const list = Array.isArray(data.results) ? data.results : [];
+        if (!list.length) { statusEl.textContent = 'No matching Indian location found. Try a nearby town, district, or coordinates.'; return; }
+        statusEl.textContent = `Found ${list.length} location(s). Select one:`;
+        list.forEach((item) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'geo-pick w-full text-left px-3 py-2 hover:bg-sky-50 transition flex items-center justify-between text-xs';
+          const info = document.createElement('span');
+          const name = document.createElement('strong');
+          name.className = 'block text-[#0F2A43]';
+          name.textContent = item.name || 'Unnamed place';
+          const area = document.createElement('span');
+          area.className = 'text-slate-500 block text-[11px]';
+          area.textContent = [item.admin2, item.admin1, item.country].filter(Boolean).join(', ');
+          info.append(name, area);
+          const coords = document.createElement('span');
+          coords.className = 'text-[10px] text-slate-400 font-mono';
+          coords.textContent = `${Number(item.latitude).toFixed(3)}, ${Number(item.longitude).toFixed(3)}`;
+          button.append(info, coords);
+          button.addEventListener('click', () => {
+            resultsEl.classList.add('hidden');
+            statusEl.textContent = '';
+            selectLocation({ name: item.name || 'Selected place', admin1: item.admin1 || 'India', admin2: item.admin2 || '', lat: Number(item.latitude), lng: Number(item.longitude), elevation: item.elevation });
+          });
+          resultsEl.appendChild(button);
+        });
+        resultsEl.classList.remove('hidden');
+      } catch (err) {
+        statusEl.textContent = `Location search unavailable: ${err.message}. You can try coordinates instead.`;
+      }
+    }
+
+    document.getElementById('btn-coord-go').addEventListener('click', () => {
+      searchIndiaLocation(document.getElementById('coord-input').value);
+    });
+    document.getElementById('coord-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') searchIndiaLocation(e.target.value);
+    });
+
+    document.getElementById('location-select').addEventListener('change', (e) => {
+      const val = e.target.value;
+      if (!val) return;
+      const parts = val.split(',');
+      selectLocation({
+        lat: parseFloat(parts[0]),
+        lng: parseFloat(parts[1]),
+        name: parts[2],
+        admin1: parts[3] || 'India',
+      });
+    });
+
+    async function selectLocation(loc) {
+      if (!Number.isFinite(Number(loc.lat)) || !Number.isFinite(Number(loc.lng)) || Number(loc.lat) < 6 || Number(loc.lat) > 38 || Number(loc.lng) < 68 || Number(loc.lng) > 98) {
+        document.getElementById('search-status').textContent = 'Invalid coordinates. Select a point within India.'; return;
+      }
+      loc = { ...loc, lat: Number(loc.lat), lng: Number(loc.lng) };
+      delete loc.population;
+      state.selected = loc;
+      document.getElementById('loc-card-empty').classList.add('hidden');
+      document.getElementById('loc-card-live').classList.remove('hidden');
+      document.getElementById('loc-card-live').classList.add('flex');
+      document.getElementById('live-loc-name').textContent = `${loc.name}${loc.admin1 ? ', ' + loc.admin1 : ''}`;
+      document.getElementById('live-loc-coords').textContent = `${loc.lat.toFixed(4)}°N, ${loc.lng.toFixed(4)}°E • Fetching weather-model data...`;
+      document.getElementById('modal-loc-name').textContent = `${loc.name}${loc.admin1 ? ', ' + loc.admin1 : ''}`;
+
+      if (loc.population) {
+        document.getElementById('wisw-pop').value = loc.population;
+        updateWISW();
+      }
+      await fetchLiveWaterData(loc);
+    }
+
+    let latestFetchRequest = 0;
+    async function fetchLiveWaterData(loc) {
+      const requestId = ++latestFetchRequest;
+      document.getElementById('live-loc-coords').textContent = `${loc.lat.toFixed(4)}°N, ${loc.lng.toFixed(4)}°E • Fetching model data…`;
+      const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lng}&daily=precipitation_sum,rain_sum,et0_fao_evapotranspiration,precipitation_probability_max&past_days=30&forecast_days=7&timezone=Asia%2FKolkata`;
+      const floodUrl = `https://flood-api.open-meteo.com/v1/flood?latitude=${loc.lat}&longitude=${loc.lng}&daily=river_discharge,river_discharge_mean,river_discharge_max&past_days=30&forecast_days=7`;
+
+      try {
+        const [wRes, fRes] = await Promise.all([fetch(weatherUrl), fetch(floodUrl)]);
+        if (!wRes.ok) throw new Error('Weather API error');
+        const weather = await wRes.json();
+        const flood = fRes.ok ? await fRes.json() : null;
+        if (requestId !== latestFetchRequest) return;
+        state.liveData = { weather, flood, fetchedAt: new Date().toISOString(), source: 'Open-Meteo forecast model; river discharge via Open-Meteo Flood API' };
+        renderLiveLocation();
+      } catch (err) {
+        if (requestId !== latestFetchRequest) return;
+        state.liveData = null;
+        document.getElementById('live-loc-coords').textContent = `${loc.lat.toFixed(4)}°N, ${loc.lng.toFixed(4)}°E • Data service unavailable: ${err.message}`;
+      }
+    }
+
+    document.getElementById('btn-refresh-live').addEventListener('click', () => {
+      if (state.selected) fetchLiveWaterData(state.selected);
+    });
+
+    function renderLiveLocation() {
+      const loc = state.selected;
+      const { weather, flood, fetchedAt } = state.liveData;
+      const d = weather.daily;
+      const totalDays = d.time.length;
+      const pastCount = Math.max(0, totalDays - 7);
+
+      const pastRain = d.precipitation_sum.slice(0, pastCount).reduce((a, b) => a + (b || 0), 0);
+      const pastET0 = d.et0_fao_evapotranspiration.slice(0, pastCount).reduce((a, b) => a + (b || 0), 0);
+      const next7Rain = d.precipitation_sum.slice(pastCount).reduce((a, b) => a + (b || 0), 0);
+      const next7Dates = d.time.slice(pastCount).map(t => t.slice(5));
+      const next7Vals = d.precipitation_sum.slice(pastCount).map(v => v || 0);
+
+      let latestDischarge = null;
+      let peak7Discharge = null;
+      if (flood && flood.daily && flood.daily.river_discharge) {
+        const fd = flood.daily.river_discharge;
+        const pastDis = fd.slice(0, pastCount).filter(v => v !== null && v !== undefined);
+        const futDis = fd.slice(pastCount).filter(v => v !== null && v !== undefined);
+        latestDischarge = pastDis.length ? pastDis[pastDis.length - 1] : null;
+        peak7Discharge = futDis.length ? Math.max(...futDis) : null;
+      }
+
+      document.getElementById('live-loc-coords').textContent = `${loc.lat.toFixed(4)}°N, ${loc.lng.toFixed(4)}°E • Updated ${fetchedAt}`;
+      document.getElementById('live-updated-at').textContent = `Updated ${fetchedAt}`;
+      document.getElementById('live-rain-30d').textContent = `${pastRain.toFixed(1)} mm`;
+      document.getElementById('live-rain-7d').textContent = `${next7Rain.toFixed(1)} mm`;
+      document.getElementById('live-et0').textContent = `${pastET0.toFixed(1)} mm`;
+      document.getElementById('live-discharge').textContent = latestDischarge !== null ? `${latestDischarge.toFixed(1)} m³/s` : 'N/A (Dry/Grid)';
+
+      // Auto-sync Rainwater Calculator with live 30-day rainfall
+      document.getElementById('rw-rain').value = Math.round(pastRain);
+      updateRainwater();
+
+      // Update 7-day forecast chart
+      if (liveRainChart) {
+        liveRainChart.data.labels = next7Dates;
+        liveRainChart.data.datasets[0].data = next7Vals;
+        liveRainChart.update();
+      }
+
+      // Update Tab 2 Full Report
+      document.getElementById('loc-report-empty').classList.add('hidden');
+      document.getElementById('loc-report-content').classList.remove('hidden');
+      document.getElementById('loc-rep-title').textContent = `${loc.name}${loc.admin1 ? ', ' + loc.admin1 : ''} — Live Water Report`;
+      document.getElementById('loc-rep-meta').textContent = `Coordinates: ${loc.lat.toFixed(4)}°N, ${loc.lng.toFixed(4)}°E • Model sources: Open-Meteo Weather & Flood API • Retrieved ${new Date(fetchedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}`;
+      document.getElementById('loc-rep-mode-label').textContent = state.mode === 'simple' ? 'Simple View (Citizen / Farmer)' : 'Technical View (Hydrologist / Gov)';
+
+      const netBalance = pastRain - pastET0;
+      const runoff1Km2ML = ((pastRain * 1000000 * 0.30) / 1000) / 1000;
+
+      document.getElementById('loc-rep-narrative').textContent = state.mode === 'simple'
+        ? `Open-Meteo model estimates for ${loc.name} show ${pastRain.toFixed(1)} mm precipitation over the past 30 days and ${pastET0.toFixed(1)} mm reference ET₀. The next 7-day model forecast totals ${next7Rain.toFixed(1)} mm. ${latestDischarge !== null ? `Nearby river grid flow is ${latestDischarge.toFixed(1)} m³/s.` : ''}`
+        : `30-day modelled weather indicators (not a closed water balance): precipitation = ${pastRain.toFixed(1)} mm, reference ET₀ = ${pastET0.toFixed(1)} mm, difference = ${netBalance.toFixed(1)} mm. 7-day QPF = ${next7Rain.toFixed(1)} mm. GloFAS v4 river discharge: current ${latestDischarge !== null ? latestDischarge.toFixed(2) : 'N/A'} m³/s, 7d peak ${peak7Discharge !== null ? peak7Discharge.toFixed(2) : 'N/A'} m³/s.`;
+
+      if (liveHistoryChart) {
+        liveHistoryChart.data.labels = d.time.slice(0, pastCount).map(t => t.slice(5));
+        liveHistoryChart.data.datasets[0].data = d.precipitation_sum.slice(0, pastCount).map(v => v || 0);
+        liveHistoryChart.data.datasets[1].data = d.et0_fao_evapotranspiration.slice(0, pastCount).map(v => v || 0);
+        liveHistoryChart.update();
+      }
+
+      const flowSteps = [
+        `30-day modelled precipitation: ${pastRain.toFixed(1)} mm`,
+        'Runoff: not modelled for this catchment',
+        'Groundwater recharge: no local observation/model connected',
+        `River discharge grid estimate: ${latestDischarge !== null ? latestDischarge.toFixed(1) + ' m³/s' : 'unavailable'}`,
+        'Reservoir inflow/storage: official feed not connected'
+      ];
+      const flowContainer = document.getElementById('flow-chain-container');
+      flowContainer.replaceChildren();
+      flowSteps.forEach((step, idx) => {
+        const card = document.createElement('div');
+        card.className = 'p-3 rounded-xl bg-teal-50/70 border border-teal-200 flex flex-col justify-between';
+        const label = document.createElement('span');
+        label.className = 'text-[10px] font-bold uppercase text-[#0EA5A4]';
+        label.textContent = `Stage ${idx + 1}`;
+        const value = document.createElement('span');
+        value.className = 'text-xs font-bold text-[#0F2A43] mt-1';
+        value.textContent = step;
+        card.append(label, value);
+        flowContainer.appendChild(card);
+      });
+
+      document.getElementById('loc-drought-status').textContent = `${netBalance >= 0 ? '+' : ''}${netBalance.toFixed(1)} mm (P − ET₀)`;
+      document.getElementById('loc-drought-note').textContent = 'Weather indicator only. This is not a drought classification or a complete soil/catchment water balance.';
+      document.getElementById('loc-flood-status').textContent = peak7Discharge !== null ? `7d Peak: ${peak7Discharge.toFixed(1)} m³/s` : 'Low / Headwater Grid';
+      document.getElementById('loc-flood-note').textContent = 'Model-grid discharge estimate, not a local gauge reading. Check official CWC/IMD warnings for flood decisions.';
+      document.getElementById('loc-loss-status').textContent = `${runoff1Km2ML.toFixed(1)} ML / km²`;
+      document.getElementById('loc-loss-note').textContent = `Illustrative runoff volume per km² using an assumed C = 0.30; not a measured or validated catchment runoff estimate.`;
+
+      document.getElementById('ai-advisory-text').textContent = `Rule-based guidance for ${loc.name} (${loc.admin1 || 'India'}): 30-day modelled precipitation is ${pastRain.toFixed(1)} mm vs. ${pastET0.toFixed(1)} mm ET0 (net ${netBalance.toFixed(1)} mm), with ${next7Rain.toFixed(1)} mm forecast over the next 7 days. ${netBalance < 0 ? 'Focus on moisture retention, tank restoration, and rooftop rainwater harvesting ahead of dry spells.' : 'Evaluate safe runoff capture and recharge structures after verifying local soil permeability.'}`;
+    }
+
+    document.getElementById('btn-open-full-report').addEventListener('click', () => switchTab('location'));
+    document.getElementById('btn-back-to-dash').addEventListener('click', () => switchTab('dashboard'));
+    document.getElementById('btn-goto-wisw').addEventListener('click', () => switchTab('calculators'));
+
+    function updateWISW() {
+      const val = Math.max(0, Number.parseFloat(document.getElementById('wisw-val').value) || 0);
+      const unit = document.getElementById('wisw-unit').value;
+      const popRaw = document.getElementById('wisw-pop').value.trim();
+      const pop = Number.parseFloat(popRaw);
+      const lpcd = Number.parseFloat(document.getElementById('wisw-lpcd').value);
+      const factors = { TMC: 28316846592, BCM: 1e12, MCM: 1e9, ML: 1e6, M3: 1000 };
+      const litres = val * (factors[unit] || 1000);
+      const validPopulation = popRaw !== '' && Number.isFinite(pop) && pop > 0;
+      const validDemand = Number.isFinite(lpcd) && lpcd > 0;
+      const days = validPopulation && validDemand ? litres / (pop * lpcd) : null;
+      document.getElementById('wisw-out-ml').textContent = `${(litres / 1e6).toLocaleString('en-IN', { maximumFractionDigits: 2 })} Million Litres`;
+      document.getElementById('wisw-out-m3').textContent = `${(litres / 1000).toLocaleString('en-IN', { maximumFractionDigits: 2 })} m³`;
+      document.getElementById('wisw-out-bottles').textContent = `${(litres / 2.5).toLocaleString('en-IN', { maximumFractionDigits: 0 })} containers of 2.5 L`;
+      document.getElementById('wisw-out-days').textContent = days === null ? 'Enter verified population and daily demand' : `${days.toLocaleString('en-IN', { maximumFractionDigits: 1 })} days (${(days / 365).toFixed(2)} yrs)`;
+    }
+    ['wisw-val', 'wisw-unit', 'wisw-pop', 'wisw-lpcd'].forEach(id => {
+      document.getElementById(id).addEventListener('input', updateWISW);
+      document.getElementById(id).addEventListener('change', updateWISW);
+    });
+
+    function updateRainwater() {
+      const R = Math.max(0, Number.parseFloat(document.getElementById('rw-rain').value) || 0);
+      const A = Math.max(0, Number.parseFloat(document.getElementById('rw-area').value) || 0);
+      const rawC = Number.parseFloat(document.getElementById('rw-coeff').value);
+      const C = Math.min(1, Math.max(0, Number.isFinite(rawC) ? rawC : 0.30));
+      document.getElementById('rw-coeff-val').textContent = C.toFixed(2);
+      // 1 mm rain on 1 m² = 1 litre = 0.001 m³.
+      const totalM3 = R * A / 1000;
+      const runoffM3 = totalM3 * C;
+      const unallocatedM3 = Math.max(0, totalM3 - runoffM3);
+      const totalML = totalM3 / 1000;
+      const runoffML = runoffM3 / 1000;
+      const remainingML = unallocatedM3 / 1000;
+      document.getElementById('rw-out-total').textContent = `${totalML.toFixed(3)} ML`;
+      document.getElementById('rw-out-runoff').textContent = `${runoffML.toFixed(3)} ML`;
+      document.getElementById('rw-out-loss').textContent = `${remainingML.toFixed(3)} ML (unallocated)`;
+      if (budgetChart) {
+        budgetChart.data.labels = ['Estimated runoff (modelled coefficient)', 'Remaining volume (not apportioned)'];
+        budgetChart.data.datasets[0].data = [runoffML, remainingML];
+        budgetChart.update();
+      }
+    }
+    ['rw-rain', 'rw-area', 'rw-coeff'].forEach(id => document.getElementById(id).addEventListener('input', updateRainwater));
+
+    function updateSustainability() {
+      const gross = Math.max(0, parseFloat(document.getElementById('sust-storage').value) || 0);
+      const deductPct = Math.min(95, Math.max(0, parseFloat(document.getElementById('sust-deduct').value) || 0));
+      const demand = Math.max(0.01, parseFloat(document.getElementById('sust-demand').value) || 0.01);
+      const usable = gross * (1 - deductPct / 100);
+      document.getElementById('sust-usable').textContent = `${usable.toFixed(1)} ML`;
+      document.getElementById('sust-central').textContent = `${Math.round(usable / demand)} days`;
+      document.getElementById('sust-high').textContent = `${Math.round(usable / (demand * 0.8))} days`;
+      document.getElementById('sust-low').textContent = `${Math.round(usable / (demand * 1.3))} days`;
+    }
+    ['sust-storage', 'sust-deduct', 'sust-demand'].forEach(id => document.getElementById(id).addEventListener('input', updateSustainability));
+
+    const modal = document.getElementById('export-modal');
+    document.getElementById('btn-export-report').addEventListener('click', () => modal.classList.remove('hidden'));
+    document.getElementById('btn-close-modal').addEventListener('click', () => modal.classList.add('hidden'));
+    document.getElementById('btn-print-report').addEventListener('click', () => { modal.classList.add('hidden'); window.print(); });
+    document.getElementById('btn-dl-json').addEventListener('click', () => {
+      const payload = { platform: 'WaterIntel India', generatedAt: new Date().toISOString(), experienceMode: state.mode, selectedLocation: state.selected, liveData: state.liveData };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `waterintel_${state.selected ? state.selected.name.toLowerCase().replace(/\s+/g, '_') : 'india'}_report.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      modal.classList.add('hidden');
+    });
+
+    function initCharts() {
+      liveRainChart = new Chart(document.getElementById('chart-live-rain'), {
+        type: 'bar',
+        data: { labels: [], datasets: [{ label: 'Forecast (mm)', data: [], backgroundColor: '#0284C7', borderRadius: 4 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true }, x: { grid: { display: false } } } }
+      });
+
+      liveHistoryChart = new Chart(document.getElementById('chart-live-history'), {
+        type: 'bar',
+        data: {
+          labels: [],
+          datasets: [
+            { label: 'Precipitation (mm)', data: [], backgroundColor: '#0284C7', borderRadius: 3 },
+            { label: 'ET0 Evapotranspiration (mm)', data: [], type: 'line', borderColor: '#D97706', tension: 0.3, pointRadius: 2 }
+          ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+      });
+
+      new Chart(document.getElementById('chart-monsoon'), {
+        type: 'bar',
+        data: {
+          labels: ['Jun', 'Jul', 'Aug', 'Sep'],
+          datasets: [{ label: 'Normal (mm)', data: [165.4, 280.4, 254.9, 167.9], backgroundColor: ['#38BDF8', '#0284C7', '#0F2A43', '#0EA5A4'], borderRadius: 5 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+      });
+
+      new Chart(document.getElementById('chart-cgwb'), {
+        type: 'doughnut',
+        data: {
+          labels: ['CGWB assessment data not connected'],
+          datasets: [{ data: [1], backgroundColor: ['#CBD5E1'] }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } } } }
+      });
+
+      budgetChart = new Chart(document.getElementById('chart-waterbudget'), {
+        type: 'doughnut',
+        data: {
+          labels: ['Estimated runoff (ML)', 'Remaining volume (not apportioned)'],
+          datasets: [{ data: [30, 70], backgroundColor: ['#0EA5A4', '#94A3B8'] }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } } } }
+      });
+    }
+
+    let mapSvg, mapG, mapZoom;
+    function getStateFill() {
+      // Neutral fill: no verified state-level rainfall/reservoir/groundwater data layer is connected.
+      return '#CBD5E1';
+    }
+
+    async function initIndiaMap() {
+      const container = document.getElementById('india-map-container');
+      const loading = document.getElementById('map-loading');
+      const tooltip = document.getElementById('map-tooltip');
+      const width = container.clientWidth || 500;
+      const height = container.clientHeight || 390;
+      try {
+        const res = await fetch('https://cdn.jsdelivr.net/gh/udit-001/india-maps-data@ef25ebc/geojson/india.geojson');
+        if (!res.ok) throw new Error('GeoJSON fetch failed');
+        const geojson = await res.json();
+        loading.classList.add('hidden');
+        mapSvg = d3.select('#india-map-container').append('svg').attr('viewBox', `0 0 ${width} ${height}`).attr('class', 'w-full h-full');
+        mapG = mapSvg.append('g');
+        const projection = d3.geoMercator().fitSize([width - 24, height - 24], geojson);
+        const path = d3.geoPath().projection(projection);
+
+        mapG.selectAll('path')
+          .data(geojson.features)
+          .enter()
+          .append('path')
+          .attr('d', path)
+          .attr('class', 'map-state')
+          .attr('fill', d => getStateFill(d.properties.ST_NM || d.properties.NAME_1 || d.properties.name))
+          .attr('stroke', '#ffffff')
+          .attr('stroke-width', 0.7)
+          .on('mousemove', (event, d) => {
+            const stName = d.properties.ST_NM || d.properties.NAME_1 || d.properties.name || 'India Region';
+            tooltip.textContent = `${stName} — approximate map point; select to query weather model data`;
+            tooltip.style.left = `${event.offsetX + 12}px`;
+            tooltip.style.top = `${event.offsetY - 12}px`;
+            tooltip.classList.remove('hidden');
+          })
+          .on('mouseleave', () => tooltip.classList.add('hidden'))
+          .on('click', (event, d) => {
+            const stName = d.properties.ST_NM || d.properties.NAME_1 || d.properties.name || 'India';
+            const pt = d3.pointer(event, mapG.node());
+            const [lng, lat] = projection.invert(pt);
+            selectLocation({ name: `Approximate map point near ${stName}`, admin1: 'India', lat, lng });
+          });
+
+        mapZoom = d3.zoom().scaleExtent([1, 6]).on('zoom', (e) => mapG.attr('transform', e.transform));
+        mapSvg.call(mapZoom);
+        document.getElementById('btn-map-reset').addEventListener('click', () => mapSvg.transition().duration(350).call(mapZoom.transform, d3.zoomIdentity));
+      } catch (err) {
+        loading.textContent = 'Interactive India map boundary layer could not be loaded offline. Use the location search above.';
+      }
+    }
+
+    document.querySelectorAll('.layer-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.layer = btn.dataset.layer;
+        document.querySelectorAll('.layer-btn').forEach(b => {
+          const active = b.dataset.layer === state.layer;
+          b.classList.toggle('bg-[#0F2A43]', active);
+          b.classList.toggle('text-white', active);
+          b.classList.toggle('bg-slate-100', !active);
+          b.classList.toggle('text-slate-700', !active);
+        });
+        document.getElementById('map-layer-legend').textContent = `${state.layer.charAt(0).toUpperCase() + state.layer.slice(1)} layer unavailable: verified state-level dataset not connected.`;
+        if (mapG) mapG.selectAll('path.map-state').attr('fill', '#CBD5E1');
+      });
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      updateWISW();
+      initCharts();
+      updateRainwater();
+      updateSustainability();
+      initIndiaMap();
+    });
+  </script>
+  <footer class="max-w-7xl w-full mx-auto px-4 pb-5 text-[10px] text-slate-500">
+    WaterIntel India v1.1 · Prototype · Weather and river values are model outputs · No official groundwater/reservoir integration or trained AI prediction model in this release.
+  </footer>
+</body>
+</html>
